@@ -131,11 +131,38 @@
     if (res.status === 204) return null;
     if (!res.ok) {
       var body = await res.text();
-      var err = new Error("GitHub " + res.status + " " + body.slice(0, 160));
+      var brief = path.split("?")[0];
+      var hint = "";
+      if (res.status === 401) hint = "令牌无效或已过期";
+      else if (res.status === 403) hint = "权限不足或被限流";
+      else if (res.status === 404) hint = "仓库不存在、令牌未授权该仓库，或缺少该接口所需权限";
+      var err = new Error(
+        (hint || "请求失败") + "（" + res.status + " " + brief + "）"
+      );
       err.status = res.status;
+      err.body = body;
       throw err;
     }
     return res.json();
+  }
+
+  async function verifyConnection() {
+    await gh("/repos/" + cfg.owner + "/" + cfg.repo);
+    try {
+      await gh(repoPath("/contents/accounts.json?ref=" + encodeURIComponent(cfg.branch)));
+    } catch (e) {
+      if (e.status !== 404) {
+        throw new Error("Contents 权限异常：" + e.message);
+      }
+    }
+    try {
+      await gh(repoPath("/actions/secrets/public-key"));
+    } catch (e) {
+      throw new Error(
+        "缺少 Secrets 权限（令牌 → Repository permissions → Secrets 设为 Read and write）：" +
+          e.message
+      );
+    }
   }
 
   function repoPath(suffix) {
@@ -417,10 +444,11 @@
       token: form.token.value.trim(),
     };
     localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
-    closeModal("modal-settings");
     try {
+      await verifyConnection();
       await loadAccounts();
       renderAll();
+      closeModal("modal-settings");
       toast("连接成功");
     } catch (err) {
       fail(err);
