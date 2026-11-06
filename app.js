@@ -147,7 +147,17 @@
   }
 
   async function verifyConnection() {
-    await gh("/repos/" + cfg.owner + "/" + cfg.repo);
+    try {
+      await gh("/repos/" + cfg.owner + "/" + cfg.repo);
+    } catch (e) {
+      throw new Error(
+        "仓库 " +
+          cfg.owner +
+          "/" +
+          cfg.repo +
+          " 不可访问，请确认“GitHub 用户名”填的是账号名（区分大小写），不是电脑用户名"
+      );
+    }
     try {
       await gh(repoPath("/contents/accounts.json?ref=" + encodeURIComponent(cfg.branch)));
     } catch (e) {
