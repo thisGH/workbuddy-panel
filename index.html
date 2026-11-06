@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WorkBuddy 签到面板</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark"></span>
+      <span>WorkBuddy 签到面板</span>
+    </div>
+    <div class="topbar-actions">
+      <span id="conn-badge" class="badge badge-muted">未连接</span>
+      <button id="btn-refresh" class="btn btn-ghost" type="button">刷新</button>
+      <button id="btn-settings" class="btn btn-ghost" type="button">连接设置</button>
+    </div>
+  </header>
+
+  <main class="page">
+    <section id="setup-hint" class="banner hidden">
+      <div>
+        <strong>先完成连接设置</strong>
+        <p>填写 GitHub 用户名、私有数据仓名称与访问令牌后即可管理账户。</p>
+      </div>
+      <button id="btn-setup-now" class="btn btn-primary" type="button">去设置</button>
+    </section>
+
+    <section class="stats">
+      <div class="stat">
+        <div class="stat-label">账户总数</div>
+        <div class="stat-value" id="stat-total">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">生效中</div>
+        <div class="stat-value ok" id="stat-active">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">异常／过期</div>
+        <div class="stat-value bad" id="stat-bad">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">3 天内到期</div>
+        <div class="stat-value warn" id="stat-expiring">0</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <h2>账户</h2>
+          <p class="muted" id="account-summary">尚无账户</p>
+        </div>
+        <div class="card-actions">
+          <button id="btn-add" class="btn btn-primary" type="button">添加账户</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>名称</th>
+              <th>凭证</th>
+              <th>状态</th>
+              <th>到期</th>
+              <th>最近执行</th>
+              <th class="ta-right">操作</th>
+            </tr>
+          </thead>
+          <tbody id="account-tbody">
+            <tr>
+              <td colspan="6" class="empty">尚未连接或没有账户</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <h2>已删除账户</h2>
+          <p class="muted">仅保留脱敏记录，凭证已清除</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>名称</th>
+              <th>凭证</th>
+              <th>删除时间</th>
+              <th>最近结果</th>
+            </tr>
+          </thead>
+          <tbody id="archived-tbody">
+            <tr>
+              <td colspan="4" class="empty">暂无记录</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card help">
+      <h2>使用说明</h2>
+      <ol>
+        <li>在私有数据仓创建 fine-grained 令牌，权限勾选 <code>Contents: Read and write</code>、<code>Secrets: Read and write</code>、<code>Actions: Read and write</code>。</li>
+        <li>点击“连接设置”填入用户名、仓库名与令牌，令牌只存在本浏览器。</li>
+        <li>添加账户时先登录 <code>www.workbuddy.cn</code>，从开发者工具复制完整 Cookie。</li>
+        <li>提交后会自动触发一次校验运行，约 1 分钟后刷新查看状态。</li>
+      </ol>
+      <p class="muted">凭证仅单向写入仓库密钥，面板与接口都不会回显明文。</p>
+    </section>
+  </main>
+
+  <div id="modal-settings" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3>连接设置</h3>
+        <button class="icon-btn" data-close="modal-settings" type="button">×</button>
+      </div>
+      <form id="form-settings" class="form">
+        <label>
+          <span>GitHub 用户名</span>
+          <input name="owner" type="text" placeholder="例如 mekli" autocomplete="off" required>
+        </label>
+        <label>
+          <span>私有数据仓名称</span>
+          <input name="repo" type="text" placeholder="例如 workbuddy-checkin" autocomplete="off" required>
+        </label>
+        <label>
+          <span>分支</span>
+          <input name="branch" type="text" value="main" autocomplete="off" required>
+        </label>
+        <label>
+          <span>访问令牌（fine-grained PAT）</span>
+          <input name="token" type="password" placeholder="github_pat_..." autocomplete="off" required>
+        </label>
+        <p class="muted small">令牌仅保存在本浏览器 localStorage，不会上传到任何第三方。</p>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" id="btn-disconnect">断开连接</button>
+          <button type="submit" class="btn btn-primary">保存并连接</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-add" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3>添加账户</h3>
+        <button class="icon-btn" data-close="modal-add" type="button">×</button>
+      </div>
+      <div class="steps">
+        <span class="step is-active" data-step="1">1 登录</span>
+        <span class="step" data-step="2">2 粘贴凭证</span>
+        <span class="step" data-step="3">3 确认</span>
+      </div>
+
+      <div class="step-pane" data-pane="1">
+        <p>请在新窗口完成 WorkBuddy 登录，然后回到本页。</p>
+        <a class="btn btn-primary" href="https://www.workbuddy.cn/profile/growth-center" target="_blank" rel="noopener">打开 WorkBuddy</a>
+        <p class="muted small">登录后按 F12 打开开发者工具，进入 Network，选择任意请求，复制 Request Headers 中的完整 Cookie。</p>
+      </div>
+
+      <div class="step-pane hidden" data-pane="2">
+        <label>
+          <span>显示名称</span>
+          <input id="add-name" type="text" placeholder="例如 工作号" autocomplete="off">
+        </label>
+        <label>
+          <span>Cookie</span>
+          <textarea id="add-cookie" rows="5" placeholder="session=...; session_2=..."></textarea>
+        </label>
+        <p class="muted small" id="cookie-hint">必须包含 session= 字段。</p>
+      </div>
+
+      <div class="step-pane hidden" data-pane="3">
+        <dl class="kv">
+          <dt>显示名称</dt><dd id="confirm-name">-</dd>
+          <dt>凭证指纹</dt><dd id="confirm-fingerprint">-</dd>
+          <dt>预计到期</dt><dd id="confirm-expire">-</dd>
+        </dl>
+        <p class="muted small">提交后会写入仓库密钥并触发一次校验运行。</p>
+      </div>
+
+      <div class="modal-actions">
+        <button id="add-prev" class="btn btn-ghost" type="button">上一步</button>
+        <button id="add-next" class="btn btn-primary" type="button">下一步</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-detail" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 id="detail-title">账户详情</h3>
+        <button class="icon-btn" data-close="modal-detail" type="button">×</button>
+      </div>
+      <dl class="kv" id="detail-kv"></dl>
+      <h4>最近 7 天记录</h4>
+      <ul class="history" id="detail-history"></ul>
+      <div class="modal-actions">
+        <button id="detail-disable" class="btn btn-ghost" type="button">停用</button>
+        <button id="detail-delete" class="btn btn-danger" type="button">删除账户</button>
+        <button id="detail-close" class="btn btn-primary" type="button">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="./vendor/sodium.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
